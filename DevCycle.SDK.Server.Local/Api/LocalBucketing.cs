@@ -31,7 +31,7 @@ namespace DevCycle.SDK.Server.Local.Api
         private Instance WASMInstance { get; }
         private Random random;
 #endif
-        public LocalBucketing()
+        public LocalBucketing(LocalBucketingOverrides overrides = null)
         {
 #if NETSTANDARD2_0
             throw new NotImplementedException(InvalidVersionMessage);
@@ -58,51 +58,54 @@ namespace DevCycle.SDK.Server.Local.Api
             );
 
             WASMLinker.DefineWasi();
+            var abortCallback = (Caller caller, int messagePtr, int filenamePtr, int linenum, int colnum) =>
+            {
+                var memory = caller.GetMemory("memory");
+                if (memory is null)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                var message = ReadAssemblyScriptString(caller, memory, messagePtr);
+                var filename = ReadAssemblyScriptString(caller, memory, filenamePtr);
+
+                throw new System.Exception($"abort: {message} ({filename}:{linenum}:{colnum})");
+            };
             WASMLinker.Define(
                 "env",
                 "abort",
-                Function.FromCallback(WASMStore,
-                    (Caller caller, int messagePtr, int filenamePtr, int linenum, int colnum) =>
-                    {
-                        var memory = caller.GetMemory("memory");
-                        if (memory is null)
-                        {
-                            throw new InvalidOperationException();
-                        }
+                Function.FromCallback(WASMStore,overrides?.AbortCallback ?? abortCallback)
+                );
 
-                        var message = ReadAssemblyScriptString(caller, memory, messagePtr);
-                        var filename = ReadAssemblyScriptString(caller, memory, filenamePtr);
+            var consoleLogCallback = (Caller caller, int messagePtr) =>
+            {
+                var memory = caller.GetMemory("memory");
+                if (memory is null)
+                {
+                    throw new InvalidOperationException();
+                }
 
-                        throw new System.Exception($"abort: {message} ({filename}:{linenum}:{colnum})");
-                    })
-            );
+                var message = ReadAssemblyScriptString(caller, memory, messagePtr);
+                Console.WriteLine(message);
+            };
             WASMLinker.Define(
                 "env",
                 "console.log",
-                Function.FromCallback(WASMStore,
-                    (Caller caller, int messagePtr) =>
-                    {
-                        var memory = caller.GetMemory("memory");
-                        if (memory is null)
-                        {
-                            throw new InvalidOperationException();
-                        }
-
-                        var message = ReadAssemblyScriptString(caller, memory, messagePtr);
-                        Console.WriteLine(message);
-                    })
+                Function.FromCallback(WASMStore, overrides?.ConsoleLogCallback ?? consoleLogCallback)
             );
+            
+            var dateNowCallback = (Caller _) => (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds;
             WASMLinker.Define(
                 "env",
                 "Date.now",
-                Function.FromCallback(WASMStore,
-                    (Caller _) => (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds)
+                Function.FromCallback(WASMStore, overrides?.DateNowCallback ?? dateNowCallback)
             );
+
+            var seedCallback = (Caller _) => random.NextDouble() * (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds;
             WASMLinker.Define(
                 "env",
                 "seed",
-                Function.FromCallback(WASMStore,
-                    (Caller _) => (random.NextDouble() * (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds))
+                Function.FromCallback(WASMStore, overrides?.SeedCallback ?? seedCallback)
             );
 
             WASMInstance = WASMLinker.Instantiate(WASMStore, WASMModule);

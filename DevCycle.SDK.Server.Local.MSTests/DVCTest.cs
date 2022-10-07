@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using DevCycle.SDK.Server.Local.Api;
@@ -15,16 +16,20 @@ using RestSharp;
 using RichardSzalay.MockHttp;
 using Environment = System.Environment;
 
+using Wasmtime;
+using Module = Wasmtime.Module;
+
 namespace DevCycle.SDK.Server.Local.MSTests
 {
     [TestClass]
     public class DVCTest
     {
         private DVCLocalClient getTestClient(
+            string config = null,
+            LocalBucketing localBucketing = null,
             DVCLocalOptions options = null)
         {
-            //string config = "{\"project\":{\"settings\":{\"edgeDB\":{\"enabled\":false}},\"_id\":\"6216420c2ea68943c8833c09\",\"key\":\"default\",\"a0_organization\":\"org_NszUFyWBFy7cr95J\"},\"environment\":{\"_id\":\"6216420c2ea68943c8833c0b\",\"key\":\"development\"},\"features\":[{\"_id\":\"6216422850294da359385e8b\",\"key\":\"test\",\"type\":\"release\",\"variations\":[{\"variables\":[{\"_var\":\"6216422850294da359385e8d\",\"value\":true}],\"name\":\"Variation On\",\"key\":\"variation-on\",\"_id\":\"6216422850294da359385e8f\"},{\"variables\":[{\"_var\":\"6216422850294da359385e8d\",\"value\":false}],\"name\":\"Variation Off\",\"key\":\"variation-off\",\"_id\":\"6216422850294da359385e90\"}],\"configuration\":{\"_id\":\"621642332ea68943c8833c4a\",\"targets\":[{\"distribution\":[{\"percentage\":0.5,\"_variation\":\"6216422850294da359385e8f\"},{\"percentage\":0.5,\"_variation\":\"6216422850294da359385e90\"}],\"_audience\":{\"_id\":\"621642332ea68943c8833c4b\",\"filters\":{\"operator\":\"and\",\"filters\":[{\"values\":[],\"type\":\"all\",\"filters\":[]}]}},\"_id\":\"621642332ea68943c8833c4d\"}],\"forcedUsers\":{}}}],\"variables\":[{\"_id\":\"6216422850294da359385e8d\",\"key\":\"test\",\"type\":\"Boolean\"}],\"variableHashes\":{\"test\":2447239932}}";
-            string config = new string(Fixtures.Config());
+            config ??= new string(Fixtures.Config());
             var mockHttp = new MockHttpMessageHandler();
 
             mockHttp.When("https://config-cdn*")
@@ -33,7 +38,7 @@ namespace DevCycle.SDK.Server.Local.MSTests
             mockHttp.When("https://events*")
                 .Respond(HttpStatusCode.Created, "application/json",
                     "{}");
-            var localBucketing = new LocalBucketing();
+            localBucketing ??= new LocalBucketing();
             var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
             var environmentKey = $"dvc_server_{Guid.NewGuid().ToString().Replace('-','_')}_hash";
             localBucketing.StoreConfig(environmentKey, config);
@@ -50,6 +55,46 @@ namespace DevCycle.SDK.Server.Local.MSTests
                 .SetLogger(loggerFactory)
                 .Build();
             return api;
+        }
+
+        [TestMethod]
+        public async Task RolloutAtEnd()
+        {
+            var config = Fixtures.ConfigWithRollout();
+            var user = new User("j_test");
+            string key = "foo";
+
+            var endTime = DateTime.Parse("2022-10-08T04:00:00.000Z");
+            var localBucketing = new LocalBucketing(new LocalBucketingOverrides()
+            {
+                DateNowCallback = (Caller _) => (endTime - DateTime.UnixEpoch).TotalMilliseconds,
+                // A maximum seed represents a user who will not receive the variation if progress is less than 100%
+                SeedCallback = (Caller _) => (endTime - DateTime.UnixEpoch).TotalMilliseconds
+            });
+            var api = getTestClient(config, localBucketing);
+            var result = api.Variable(user, key, false);
+            Assert.IsNotNull(result);
+            Assert.IsTrue(result.Value);
+        }
+        
+        [TestMethod]
+        public async Task RolloutAtStart()
+        {
+            var config = Fixtures.ConfigWithRollout();
+            var user = new User("j_test");
+            string key = "foo";
+            
+            var startTime = DateTime.Parse("2022-10-07T04:00:00.000Z");
+            var localBucketing = new LocalBucketing(new LocalBucketingOverrides()
+            {
+                DateNowCallback = (Caller _) => (startTime - DateTime.UnixEpoch).TotalMilliseconds,
+                // A seed of 0 represents a user who receives the variation for any non-zero amount of progress
+                SeedCallback = (Caller _) => 0.0
+            });
+            var api = getTestClient(config, localBucketing);
+            var result = api.Variable(user, key, false);
+            Assert.IsNotNull(result);
+            Assert.IsFalse(result.Value);
         }
 
         [TestMethod]

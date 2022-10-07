@@ -13,9 +13,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DevCycle.SDK.Server.Common" Version="1.4.0" />
-    <PackageReference Include="DevCycle.SDK.Server.Local" Version="2.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2-beta2" />
     <PackageReference Include="RestSharp" Version="108.0.2-alpha.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevCycle.SDK.Server.Common\DevCycle.SDK.Server.Common.csproj" />
+    <ProjectReference Include="..\DevCycle.SDK.Server.Local\DevCycle.SDK.Server.Local.csproj" />
   </ItemGroup>
 </Project>
