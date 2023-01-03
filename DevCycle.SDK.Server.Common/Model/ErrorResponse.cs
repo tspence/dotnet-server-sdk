@@ -12,19 +12,11 @@ namespace DevCycle.SDK.Server.Common.Model
         /// <summary>
         /// Initializes a new instance of the <see cref="ErrorResponse" /> class.
         /// </summary>
-        /// <param name="message">Error message (required).</param>
+        /// <param name="message">Error message.</param>
         /// <param name="data">Additional error information detailing the error reasoning.</param>
         public ErrorResponse(string message = default, Object data = default)
         {
-            // to ensure "message" is required (not null)
-            if (message == null)
-            {
-                throw new InvalidDataException("message is a required property for ErrorResponse and cannot be null");
-            }
-            else
-            {
-                this.Message = message;
-            }
+            this.Message = message ?? "An Unexpected Error Occurred";
             this.Data = data;
         }
         

@@ -148,7 +148,7 @@ namespace DevCycle.SDK.Server.Cloud.Api
             }
         }
 
-        public async Task<DVCResponse> TrackAsync(User user, Event userEvent)
+        public async Task<object> TrackAsync(User user, Event userEvent)
         {
             ValidateUser(user);
 
@@ -159,8 +159,8 @@ namespace DevCycle.SDK.Server.Cloud.Api
             if (options.EnableEdgeDB) queryParams.Add("enableEdgeDB", "true");
 
             UserAndEvents userAndEvents = new UserAndEvents(new List<Event>() {userEvent}, user);
-
-            return await GetResponseAsync<DVCResponse>(userAndEvents, urlFragment, queryParams);
+                
+            return await GetResponseAsync<object>(userAndEvents, urlFragment, queryParams);
         }
 
         public override void Dispose()
