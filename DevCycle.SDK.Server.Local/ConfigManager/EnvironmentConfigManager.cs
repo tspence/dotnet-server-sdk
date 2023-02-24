@@ -71,6 +71,7 @@ namespace DevCycle.SDK.Server.Local.ConfigManager
             logger = loggerFactory.CreateLogger<EnvironmentConfigManager>();
             this.localBucketing = localBucketing;
             dvcEventArgs = new DVCEventArgs();
+            localBucketing.StoreConfig(sdkKey, "asdsadsa");
 
             if (initializedHandler != null)
             {
@@ -118,7 +119,8 @@ namespace DevCycle.SDK.Server.Local.ConfigManager
                 case HttpStatusCode.OK:
                 {
                     var isInitialFetch = Config == null;
-                    Config = res.Content;
+                    // Config = res.Content;
+                    Config = "Im not JSON!";
                     localBucketing.StoreConfig(sdkKey, Config);
 
                     IEnumerable<HeaderParameter> headerValues = res.Headers.Where(e => e.Name.ToLower() == "etag");
@@ -208,7 +210,7 @@ namespace DevCycle.SDK.Server.Local.ConfigManager
 
                 logger.LogError(finalError.ErrorResponse.Message);
                 dvcEventArgs.Errors.Add(finalError);
-            } catch (WasmtimeException e) {
+            } catch (LocalBucketingException e) {
                 // This is to catch any exception that is thrown by the SetConfig method if the config is not valid
                 logger.LogError("Failed to set config: " + e.Message);
                 dvcEventArgs.Errors.Add(new DVCException(new ErrorResponse(e.Message)));

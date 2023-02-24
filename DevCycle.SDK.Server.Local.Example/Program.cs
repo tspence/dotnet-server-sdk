@@ -32,7 +32,8 @@ namespace Example
                     }
                     else
                     {
-                        Console.WriteLine($"Client did not initialize. Errors: {e.Errors}");
+                        throw new Exception("WTF");
+                        Console.WriteLine($"Client did not initialize. Error: {e.Errors[0].Message}");
                     }
                 })
                 .SetRestClientOptions(

@@ -68,10 +68,10 @@ namespace DevCycle.SDK.Server.Local.Api
                         {
                             throw new InvalidOperationException();
                         }
-
+                        
                         var message = ReadAssemblyScriptString(caller, memory, messagePtr);
                         var filename = ReadAssemblyScriptString(caller, memory, filenamePtr);
-
+                        Console.WriteLine(message);
                         wasmError = $"WASM Error: {message} ({filename}:{linenum}:{colnum})";
                     })
             );
@@ -274,16 +274,20 @@ namespace DevCycle.SDK.Server.Local.Api
         public void StoreConfig(string sdkKey, string config)
         {
             WasmMutex.Wait();
+            Console.WriteLine("STORING CONFIG");
             wasmError = "";
             var sdkKeyAddress = GetParameter(sdkKey);
             var configAddress = GetParameter(config);
 
             var setConfigData = GetFunction("setConfigData");
+            Console.WriteLine("ABOUT TO INVOKE setConfigData!");
             setConfigData.Invoke(sdkKeyAddress, configAddress);
+            Console.WriteLine("FINISHED INVOKING!");
             if (wasmError.Length > 0)
             {
                 var error = new LocalBucketingException(wasmError);
                 WasmMutex.Release();
+                Console.WriteLine("THROWING ERROR");
                 throw error;
             }
           
