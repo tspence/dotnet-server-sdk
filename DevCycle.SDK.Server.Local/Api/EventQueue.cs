@@ -197,10 +197,15 @@ namespace DevCycle.SDK.Server.Local.Api
                 throw new ArgumentException("Type must be set");
             }
 
+            logger.LogWarning("Cloning the event object");
+            
             var eventCopy = @event.Clone();
+            
+            logger.LogWarning("Set the client date and value fields");
             eventCopy.ClientDate = DateTimeOffset.UtcNow.DateTime;
             eventCopy.Value = 1;
 
+            logger.LogWarning("Queueing the aggregate event");
             localBucketing.QueueAggregateEvent(
                 sdkKey,
                 JsonConvert.SerializeObject(@event),
