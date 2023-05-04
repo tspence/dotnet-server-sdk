@@ -163,10 +163,13 @@ namespace DevCycle.SDK.Server.Local.Api
             if (!configManager.Initialized)
             {
                 logger.LogWarning("Variable called before DVCClient has initialized, returning default value");
+
+                var evt = new Event(type: EventTypes.aggVariableDefaulted, target: key);
                 
+                logger.LogWarning("queue the default event");
                 eventQueue.QueueAggregateEvent(
                     requestUser,
-                    new Event(type: EventTypes.aggVariableDefaulted, target: key),
+                    evt,
                     null
                 );
                 return Common.Model.Local.Variable<T>.InitializeFromVariable(null, key, defaultValue);
